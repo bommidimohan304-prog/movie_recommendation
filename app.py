@@ -23,7 +23,7 @@ class MovieRequest(BaseModel):
 
 @app.get("/")
 def login_page():
-    return FileResponse("login.html")
+    return FileResponse("index.html")
 
 @app.get("/movie")
 def movie_page():

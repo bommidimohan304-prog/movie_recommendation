@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CinemaStream | Discovery Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #00c6ff;
+            --secondary: #0072ff;
+            --bg-dark: #050505;
+            --glass: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-main: #ffffff;
+            --text-dim: #a0a0a0;
+            --accent-red: #ff4d4d;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+
+        body {
+            background: radial-gradient(circle at 0% 0%, #1a1a2e 0%, var(--bg-dark) 100%);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            width: 320px;
+            background: var(--glass);
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            border-right: 1px solid var(--glass-border);
+            padding: 40px 30px;
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+        }
+
+        .brand {
+            font-size: 1.8rem;
+            font-weight: 800;
+            background: linear-gradient(to right, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 40px;
+        }
+
+        .label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-dim);
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        /* Genre Dropdown */
+        .dropdown-container { position: relative; margin-bottom: 15px; }
+        .select-trigger {
+            width: 100%;
+            padding: 14px 18px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .dropdown-menu {
+            display: none;
+            position: absolute;
+            width: 100%;
+            background: #1a1a2e;
+            border-radius: 12px;
+            margin-top: 8px;
+            border: 1px solid var(--glass-border);
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 100;
+        }
+
+        .dropdown-item { padding: 12px 18px; cursor: pointer; }
+        .dropdown-item:hover { background: var(--secondary); }
+
+        .chip-container { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 30px; min-height: 40px; }
+        .chip { background: rgba(0, 198, 255, 0.1); border: 1px solid rgba(0, 198, 255, 0.2); color: var(--primary); padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; }
+
+        /* Dial Section */
+        .dial-container {
+            margin-top: auto;
+            text-align: center;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 24px;
+            border: 1px solid var(--glass-border);
+        }
+
+        .dial-wrapper { position: relative; display: inline-block; cursor: pointer; touch-action: none; }
+        #ratingSvg { transform: rotate(-90deg); }
+        .dial-progress { fill: none; stroke: var(--primary); stroke-width: 8; stroke-linecap: round; transition: stroke-dashoffset 0.1s ease; }
+        .dial-value { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 1.5rem; font-weight: 800; pointer-events: none;}
+
+        /* Main Content */
+        .main-content { flex-grow: 1; padding: 40px 60px; overflow-y: auto; }
+        .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+
+        .graph-section {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 30px;
+            margin-bottom: 30px;
+            height: 380px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .generate-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border: none;
+            border-radius: 14px;
+            color: white;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .movie-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; }
+        .card { background: var(--glass); padding: 24px; border-radius: 20px; border: 1px solid var(--glass-border); transition: 0.3s;}
+        .card:hover { border-color: var(--primary); transform: translateY(-5px); }
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div class="brand">CinemaStream</div>
+        
+        <p class="label">Step 1: Genres</p>
+        <div class="dropdown-container">
+            <div class="select-trigger" onclick="toggleDropdown()">
+                <span>Select Genres</span>
+                <span>▼</span>
+            </div>
+            <div id="dropdownMenu" class="dropdown-menu"></div>
+        </div>
+        <div id="chips" class="chip-container"></div>
+
+        <div class="dial-container">
+            <p class="label">Step 2: Min Rating</p>
+            <div class="dial-wrapper" id="dialZone">
+                <svg width="120" height="120" id="ratingSvg">
+                    <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="8"/>
+                    <circle cx="60" cy="60" r="50" class="dial-progress" id="progressCircle"/>
+                </svg>
+                <div class="dial-value" id="ratingText">8.0</div>
+            </div>
+            <button class="generate-btn" onclick="getMovies()">Generate List</button>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <header class="header-row">
+            <h1>Discovery Engine</h1>
+            <button style="color:var(--accent-red); border:1px solid var(--accent-red); background:none; padding:8px 15px; border-radius:8px; cursor:pointer;" onclick="handleLogout()">Sign Out</button>
+        </header>
+
+        <div class="graph-section">
+            <canvas id="webChart"></canvas>
+        </div>
+
+        <div id="results" class="movie-grid">
+            <p style="color: var(--text-dim); grid-column: 1/-1; text-align: center;">Set your preferences to begin discovery.</p>
+        </div>
+    </main>
+
+    <script>
+        const user = localStorage.getItem("currentUser");
+        if (!user) window.location.href = "/";
+
+        function handleLogout() { localStorage.removeItem("currentUser"); window.location.href = "/"; }
+
+        // Genres Setup
+        const genres = ["Action", "Drama", "Comedy", "Thriller", "Sci-Fi", "Crime"];
+        let selectedGenres = [];
+        const menu = document.getElementById("dropdownMenu");
+
+        genres.forEach(g => {
+            const item = document.createElement("div");
+            item.className = "dropdown-item";
+            item.innerText = g;
+            item.onclick = () => { 
+                if(!selectedGenres.includes(g)) selectedGenres.push(g); 
+                renderChips(); 
+                menu.style.display="none"; 
+            };
+            menu.appendChild(item);
+        });
+
+        function toggleDropdown() { menu.style.display = menu.style.display === "block" ? "none" : "block"; }
+        function renderChips() { document.getElementById("chips").innerHTML = selectedGenres.map(g => `<div class="chip">${g}</div>`).join(""); }
+
+        // --- RATING DIAL LOGIC (RESTORED) ---
+        let currentRating = 8.0;
+        const circle = document.getElementById("progressCircle");
+        const radius = 50;
+        const circumference = 2 * Math.PI * radius;
+        circle.style.strokeDasharray = circumference;
+
+        function updateDial(val) {
+            currentRating = Math.max(1, Math.min(10, val));
+            circle.style.strokeDashoffset = circumference - (currentRating / 10) * circumference;
+            document.getElementById("ratingText").innerText = currentRating.toFixed(1);
+        }
+
+        function handleDialMove(e) {
+            const rect = document.getElementById("ratingSvg").getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+            const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+
+            const dx = clientX - centerX;
+            const dy = clientY - centerY;
+            let angle = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
+            if (angle < 0) angle += 360;
+
+            updateDial((angle / 360) * 10);
+        }
+
+        const dialZone = document.getElementById("dialZone");
+        
+        // Mouse Events
+        dialZone.addEventListener("mousedown", () => {
+            window.addEventListener("mousemove", handleDialMove);
+            window.addEventListener("mouseup", () => {
+                window.removeEventListener("mousemove", handleDialMove);
+            }, { once: true });
+        });
+
+        // Touch Events (Mobile)
+        dialZone.addEventListener("touchstart", (e) => {
+            e.preventDefault();
+            window.addEventListener("touchmove", handleDialMove);
+            window.addEventListener("touchend", () => {
+                window.removeEventListener("touchmove", handleDialMove);
+            }, { once: true });
+        });
+
+        updateDial(8.0); // Set initial state
+
+        // --- API & GRAPH LOGIC ---
+        let webChart = null;
+
+        async function getMovies() {
+            if(selectedGenres.length === 0) return alert("Select at least one genre.");
+            const container = document.getElementById("results");
+            container.innerHTML = "Searching...";
+
+            try {
+                const response = await fetch("/recommend", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ 
+                        username: user, 
+                        genre: selectedGenres.join(","), 
+                        rating: parseFloat(currentRating.toFixed(1)) 
+                    })
+                });
+                const data = await response.json();
+                
+                if(data.recommendations && data.recommendations.length > 0) {
+                    container.innerHTML = data.recommendations.map(m => `
+                        <div class="card">
+                            <h3>${m.movie_name}</h3>
+                            <p style="color:var(--primary); font-weight:700; margin-top:8px;">★ ${m.rating}</p>
+                        </div>
+                    `).join("");
+                    renderWebChart(data.recommendations);
+                } else {
+                    container.innerHTML = "<p style='grid-column: 1/-1; text-align: center;'>No matches found.</p>";
+                }
+            } catch (e) { container.innerHTML = "Error connecting to server."; }
+        }
+
+        function renderWebChart(movieData) {
+            const ctx = document.getElementById('webChart').getContext('2d');
+            if (webChart) webChart.destroy();
+            const topMovies = movieData.slice(0, 5);
+            webChart = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: topMovies.map(m => m.movie_name),
+                    datasets: [{
+                        label: 'Relevance',
+                        data: topMovies.map(m => m.rating),
+                        backgroundColor: 'rgba(0, 198, 255, 0.2)',
+                        borderColor: '#00c6ff',
+                        pointBackgroundColor: '#00c6ff',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            angleLines: { color: 'rgba(255,255,255,0.1)' },
+                            grid: { color: 'rgba(255,255,255,0.1)' },
+                            pointLabels: { color: '#a0a0a0' },
+                            ticks: { display: false },
+                            suggestedMin: 0, suggestedMax: 10
+                        }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

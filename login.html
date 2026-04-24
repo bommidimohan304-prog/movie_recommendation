@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CinemaStream | Access</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body {
+            background: radial-gradient(circle at center, #1a1a2e 0%, #0f0f1b 100%);
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start; 
+            min-height: 100vh;
+            overflow-x: hidden; 
+        }
+
+        @keyframes slideInFromLeft {
+            0% { transform: translateX(-120%); opacity: 0; }
+            100% { transform: translateX(0); opacity: 1; }
+        }
+
+        .container {
+            width: 100%;
+            max-width: 400px;
+            margin-left: 60px;
+            padding: 40px;
+            border-radius: 24px;
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+            text-align: center;
+            display: none;
+        }
+
+        .container.active { display: block; animation: slideInFromLeft 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
+
+        h2 {
+            font-size: 2.2rem; margin-bottom: 8px; font-weight: 700;
+            background: linear-gradient(to right, #00c6ff, #0072ff);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle { color: #888; font-size: 0.9rem; margin-bottom: 25px; }
+        .input-group { margin-bottom: 15px; }
+        input {
+            width: 100%; padding: 13px 16px; border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.07); color: white; outline: none;
+        }
+        input:focus { border-color: #00c6ff; box-shadow: 0 0 12px rgba(0, 198, 255, 0.2); }
+        button {
+            width: 100%; padding: 14px; margin-top: 10px; border-radius: 12px;
+            background: linear-gradient(45deg, #00c6ff, #0072ff);
+            border: none; color: white; font-weight: 600; cursor: pointer;
+        }
+        .secondary-btn { background: rgba(255, 255, 255, 0.1); margin-bottom: 10px; }
+        .otp-box { display: none; margin: 10px 0; padding: 15px; border-radius: 12px; background: rgba(0, 198, 255, 0.05); border: 1px dashed rgba(0, 198, 255, 0.3); }
+        .footer-text { margin-top: 20px; font-size: 0.9rem; color: #aaa; }
+        .footer-text a { color: #00c6ff; text-decoration: none; font-weight: 600; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div class="container active" id="loginForm">
+        <h2>Login</h2>
+        <p class="subtitle">Access your library</p>
+        <div class="input-group"><input id="loginUser" type="text" placeholder="Username"></div>
+        <div class="input-group"><input id="loginPass" type="password" placeholder="Password"></div>
+        <button onclick="handleLogin()">Sign In</button>
+        <p class="footer-text">New user? <a onclick="toggleForm('register')">Create Account</a></p>
+    </div>
+
+    <div class="container" id="registerForm">
+        <h2>Register</h2>
+        <p class="subtitle">Join CinemaStream</p>
+        <div class="input-group"><input id="regName" placeholder="Full Name"></div>
+        <div class="input-group"><input id="regPhone" type="tel" placeholder="Phone Number"></div>
+        <button class="secondary-btn" id="otpTrigger" onclick="sendOTP()">Get OTP</button>
+        <div class="otp-box" id="otpBox">
+            <input id="otpInput" placeholder="4-Digit OTP" maxlength="4">
+            <button onclick="verifyOTP()">Verify OTP</button>
+        </div>
+        <div class="input-group"><input id="regUser" placeholder="Username"></div>
+        <div class="input-group"><input id="regPass" type="password" placeholder="Password"></div>
+        <button onclick="handleRegister()">Create Account</button>
+        <p class="footer-text">Have an account? <a onclick="toggleForm('login')">Login</a></p>
+    </div>
+
+    <script>
+        let generatedOTP = null;
+        let otpVerified = false;
+
+        function toggleForm(type) {
+            document.getElementById('loginForm').classList.toggle('active', type === 'login');
+            document.getElementById('registerForm').classList.toggle('active', type === 'register');
+        }
+
+        function handleLogin() {
+            const user = document.getElementById("loginUser").value.trim();
+            const pass = document.getElementById("loginPass").value;
+            const users = JSON.parse(localStorage.getItem("users")) || {};
+
+            if (users[user] && users[user].password === pass) {
+                localStorage.setItem("currentUser", user); 
+                window.location.href = "/movie"; // Redirects to FastAPI route
+            } else {
+                alert("Invalid username or password.");
+            }
+        }
+
+        function sendOTP() {
+            generatedOTP = Math.floor(1000 + Math.random() * 9000);
+            alert("Your OTP is: " + generatedOTP);
+            document.getElementById("otpBox").style.display = "block";
+        }
+
+        function verifyOTP() {
+            if (document.getElementById("otpInput").value == generatedOTP) {
+                otpVerified = true;
+                alert("Phone Verified!");
+            } else { alert("Invalid OTP!"); }
+        }
+
+        function handleRegister() {
+            if (!otpVerified) return alert("Please verify your phone first!");
+            const u = document.getElementById("regUser").value.trim();
+            const p = document.getElementById("regPass").value;
+            if (!u || !p) return alert("Fill all fields");
+
+            let users = JSON.parse(localStorage.getItem("users")) || {};
+            users[u] = { password: p };
+            localStorage.setItem("users", JSON.stringify(users));
+            alert("Account Created!");
+            toggleForm('login');
+        }
+    </script>
+</body>
+</html>
